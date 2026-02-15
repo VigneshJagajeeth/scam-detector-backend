@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinGuard AI | Scam Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans">
+
+    <div class="max-w-3xl mx-auto p-6">
+        <header class="text-center mb-12 mt-10">
+            <h1 class="text-4xl font-bold text-blue-500 mb-2">FinGuard AI</h1>
+            <p class="text-slate-400">Detect AI-generated banking scams, phishing, and fake SMS.</p>
+        </header>
+
+        <div class="bg-slate-800 p-8 rounded-xl shadow-lg border border-slate-700">
+            <label class="block mb-2 text-sm font-medium text-slate-300">Paste suspicious text below:</label>
+            <textarea id="inputText" rows="6" class="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500" placeholder="e.g. 'Dear Customer, your account has been suspended. Click here to verify...'"></textarea>
+            
+            <div class="flex gap-4 mt-4">
+                <select id="sourceType" class="bg-slate-900 border border-slate-600 rounded-lg p-2 text-white">
+                    <option value="sms">SMS / Text</option>
+                    <option value="email">Email</option>
+                    <option value="chat">Support Chat</option>
+                </select>
+                <button onclick="analyzeText()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">Analyze Now</button>
+            </div>
+        </div>
+
+        <div id="results" class="hidden mt-8 p-6 bg-slate-800 rounded-xl border border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Analysis Result</h2>
+                <span id="verdictBadge" class="px-3 py-1 rounded-full text-sm font-bold bg-green-500 text-black">SAFE</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-sm text-slate-400 mb-2">Risk Factors</h3>
+                    <ul id="flagsList" class="list-disc list-inside text-red-400 text-sm space-y-1">
+                        </ul>
+                </div>
+                <div>
+                    <h3 class="text-sm text-slate-400 mb-2">AI Assessment</h3>
+                    <p class="text-sm text-slate-300" id="aiAssessment">No obvious AI patterns detected.</p>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-6 border-t border-slate-700">
+                <p class="text-yellow-400 font-medium">Recommendation:</p>
+                <p id="recommendationText" class="text-slate-300">Proceed with caution.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function analyzeText() {
+            const text = document.getElementById('inputText').value;
+            const type = document.getElementById('sourceType').value;
+            
+            if(!text) return alert("Please enter some text.");
+
+            const response = await fetch('http://localhost:8000/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: text, source_type: type })
+            });
+
+            const data = await response.json();
+            
+            // UI Updates
+            const resultDiv = document.getElementById('results');
+            const verdictBadge = document.getElementById('verdictBadge');
+            const flagsList = document.getElementById('flagsList');
+            
+            resultDiv.classList.remove('hidden');
+            flagsList.innerHTML = '';
+
+            // Verdict Styling
+            if (data.verdict === "SAFE") {
+                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-green-500 text-black";
+            } else if (data.verdict === "SUSPICIOUS") {
+                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-black";
+            } else {
+                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-red-600 text-white animate-pulse";
+            }
+            verdictBadge.innerText = data.verdict;
+
+            // Populate Flags
+            const allFlags = [...data.analysis.phishing_signals, ...data.analysis.ai_indicators];
+            if (allFlags.length === 0) {
+                flagsList.innerHTML = '<li class="text-green-400">No threats detected</li>';
+            } else {
+                allFlags.forEach(flag => {
+                    flagsList.innerHTML += `<li>${flag}</li>`;
+                });
+            }
+
+            document.getElementById('recommendationText').innerText = data.recommendation;
+        }
+    </script>
+</body>
+</html>
