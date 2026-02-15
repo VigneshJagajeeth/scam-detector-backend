@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import re
 import math
 
@@ -81,3 +83,7 @@ async def analyze_text(payload: TextPayload):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+# This tells the app to look for your HTML file
+@app.get("/")
+def read_root():
+    return FileResponse("index.html")
