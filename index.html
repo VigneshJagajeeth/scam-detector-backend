@@ -79,7 +79,7 @@
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: textInput, source_type: typeInput })
+                    body: JSON.stringify({ content: textInput, source_type: typeInput })
                 });
 
                 if (!response.ok) {
