@@ -55,48 +55,78 @@
 
     <script>
         async function analyzeText() {
-            const text = document.getElementById('inputText').value;
-            const type = document.getElementById('sourceType').value;
+            const textInput = document.getElementById('inputText').value;
+            const typeInput = document.getElementById('sourceType').value;
             
-            if(!text) return alert("Please enter some text.");
+            // 1. Basic Validation
+            if(!textInput) return alert("Please enter some text to analyze.");
 
-            const response = await fetch('http://localhost:8000/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: text, source_type: type })
-            });
-
-            const data = await response.json();
-            
-            // UI Updates
+            // 2. Prepare UI elements
             const resultDiv = document.getElementById('results');
             const verdictBadge = document.getElementById('verdictBadge');
             const flagsList = document.getElementById('flagsList');
+            const recommendation = document.getElementById('recommendationText');
+            const aiAssessment = document.getElementById('aiAssessment');
             
+            // Show loading state (optional polish)
+            verdictBadge.innerText = "ANALYZING...";
+            verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-gray-500 text-white animate-pulse";
             resultDiv.classList.remove('hidden');
-            flagsList.innerHTML = '';
 
-            // Verdict Styling
-            if (data.verdict === "SAFE") {
-                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-green-500 text-black";
-            } else if (data.verdict === "SUSPICIOUS") {
-                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-black";
-            } else {
-                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-red-600 text-white animate-pulse";
-            }
-            verdictBadge.innerText = data.verdict;
-
-            // Populate Flags
-            const allFlags = [...data.analysis.phishing_signals, ...data.analysis.ai_indicators];
-            if (allFlags.length === 0) {
-                flagsList.innerHTML = '<li class="text-green-400">No threats detected</li>';
-            } else {
-                allFlags.forEach(flag => {
-                    flagsList.innerHTML += `<li>${flag}</li>`;
+            try {
+                // 3. Send data to the backend
+                // Note: We use "/analyze" so it works on Render automatically
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: textInput, source_type: typeInput })
                 });
-            }
 
-            document.getElementById('recommendationText').innerText = data.recommendation;
+                if (!response.ok) {
+                    throw new Error(`Server Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 4. Handle the Verdict (Safe vs Suspicious)
+                const verdict = data.verdict ? data.verdict.toUpperCase() : "UNKNOWN";
+
+                if (verdict === "SAFE") {
+                    verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-green-500 text-black";
+                } else if (verdict === "SUSPICIOUS" || verdict === "SCAM") {
+                    verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-red-600 text-white";
+                } else {
+                    verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-yellow-500 text-black";
+                }
+                verdictBadge.innerText = verdict;
+
+                // 5. Populate Risk Flags
+                flagsList.innerHTML = ''; // Clear old flags
+                const phishSignals = data.analysis?.phishing_signals || [];
+                const aiIndicators = data.analysis?.ai_indicators || [];
+                // Combine both lists safely
+                const allFlags = [...phishSignals, ...aiIndicators];
+
+                if (allFlags.length === 0) {
+                    flagsList.innerHTML = '<li class="text-green-400">No specific threats detected.</li>';
+                } else {
+                    allFlags.forEach(flag => {
+                        const li = document.createElement('li');
+                        li.textContent = flag;
+                        flagsList.appendChild(li);
+                    });
+                }
+
+                // 6. Update Recommendations
+                if (recommendation) recommendation.innerText = data.recommendation || "No recommendation provided.";
+                if (aiAssessment) aiAssessment.innerText = data.analysis?.ai_assessment || "No AI patterns detected.";
+
+            } catch (error) {
+                console.error("Error:", error);
+                verdictBadge.innerText = "ERROR";
+                verdictBadge.className = "px-3 py-1 rounded-full text-sm font-bold bg-gray-600 text-white";
+                alert("Failed to connect to FinGuard AI. Please try again.");
+            }
         }
     </script>
 </body>
